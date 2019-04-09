@@ -33,7 +33,7 @@ class ZhihuSpider(scrapy.Spider):
         # 选中输入框的内容
         brower.find_element_by_css_selector(".SignFlow-password input").send_keys(Keys.CONTROL + 'a')
         # 在输入密码
-        brower.find_element_by_css_selector(".SignFlow-password input").send_keys("q143256987")
+        # brower.find_element_by_css_selector(".SignFlow-password input").send_keys("q143256987")
         time.sleep(3)
         # 点击登录按钮
         move(898,617)
