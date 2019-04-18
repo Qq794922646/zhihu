@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 import scrapy
 import re
+import json
 from scrapy.loader import ItemLoader
 from zhihu.items import ZhihuAnswerItem,ZhihuQuestionItem
 import pickle
+import datetime
 import time
 from urllib import parse
 from mouse import move,click
 class ZhihuSpider(scrapy.Spider):
     name = 'zhihu'
     allowed_domains = ['www.zhihu.com']
+    start_anser_url='https://www.zhihu.com/api/v4/questions/{0}/answers?include=data%5B%2A%5D.is_normal%2Cadmin_closed_comment%2Creward_info%2Cis_collapsed%2Cannotation_action%2Cannotation_detail%2Ccollapse_reason%2Cis_sticky%2Ccollapsed_by%2Csuggest_edit%2Ccomment_count%2Ccan_comment%2Ccontent%2Ceditable_content%2Cvoteup_count%2Creshipment_settings%2Ccomment_permission%2Ccreated_time%2Cupdated_time%2Creview_info%2Crelevant_info%2Cquestion%2Cexcerpt%2Crelationship.is_authorized%2Cis_author%2Cvoting%2Cis_thanked%2Cis_nothelp%2Cis_labeled%2Cis_recognized%2Cpaid_info%3Bdata%5B%2A%5D.mark_infos%5B%2A%5D.url%3Bdata%5B%2A%5D.author.follower_count%2Cbadge%5B%2A%5D.topics&limit={1}&offset={2}&platform=desktop&sort_by=default'
     start_urls = ['https://www.zhihu.com/']
     # headers='Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
     def parse(self, response):
@@ -23,7 +26,12 @@ class ZhihuSpider(scrapy.Spider):
             if match_obj:
                 request_url=match_obj.group(1)
                 quetion_id=match_obj.group(2)
+                # 提取question的页面
                 yield scrapy.Request(request_url,callback=self.parse_question)
+            else:
+                # 不是question的页面进一步爬取
+                # pass
+                yield scrapy.Request(url,callback=self.parse)
     # 从页面提取question item
     def parse_question(self, response):
         match_obj = re.match('(.*zhihu.com/question/(\d+))(/|$).*', response.url)
@@ -39,8 +47,34 @@ class ZhihuSpider(scrapy.Spider):
         item_loader.add_css('watch_user_num','.NumberBoard-itemValue::text')
         item_loader.add_css('topics','.QuestionHeader-topics .Popover div::text')
         quetion_item=item_loader.load_item()
-        pass
+        yield quetion_item
+        yield scrapy.Request(self.start_anser_url.format(quetion_id,20,0),callback=self.parse_anser)
 
+
+    def parse_anser(self, response):
+        ans_json=json.loads(response.text)
+        is_end=ans_json['paging']['is_end']
+        # total_anser=ans_json['pading']['totals']
+        next_url=ans_json['paging']['next']
+
+        for answer in ans_json['data']:
+            answer_item=ZhihuAnswerItem()
+            answer_item['ID']=answer['id']
+            answer_item['url'] = answer['url']
+            answer_item['quertion_id'] = answer['question']['id']
+            answer_item['author_id'] = answer['author']['id'] if 'id' in answer['author'] else None
+            answer_item['content'] = answer['content'] if 'content' in answer else None
+            answer_item['parise_num'] = answer['voteup_count']
+            answer_item['comments_num'] = answer['comment_count']
+            answer_item['create_time'] = answer['created_time']
+            answer_item['update_time'] = answer['updated_time']
+            answer_item['crawl_time'] = datetime.datetime.now()
+            yield answer_item
+
+        if not is_end:
+            yield scrapy.Request(next_url, callback=self.parse_anser)
+
+        pass
     # def start_requests(self):
     #
     #     # cookies=pickle.load(open('D:/python/project/zhihu/cookies/zhihui.cookie',"rb"))
