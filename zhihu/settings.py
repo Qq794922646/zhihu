@@ -64,9 +64,10 @@ DOWNLOADER_MIDDLEWARES = {
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    'zhihu.pipelines.ZhihuPipeline': 300,
-#}
+ITEM_PIPELINES = {
+   'zhihu.pipelines.MysqlTwistedPipline': 10,
+
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html
@@ -90,3 +91,11 @@ DOWNLOADER_MIDDLEWARES = {
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 HTTPERROR_ALLOWED_CODES = [400]
 USER_AGENT="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36"
+
+SQL_DATETIME_FORMAT='%Y-%m-%d %H:%M:%S'
+SQL_DATE_FORMAT='%Y-%m-%d'
+
+MYSQL_HOST='localhost'
+MYSQL_DBNAME='zhihu'
+MYSQL_USER='root'
+MYSQL_PASSWORD='q143256987'

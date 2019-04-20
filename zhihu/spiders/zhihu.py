@@ -7,6 +7,7 @@ from zhihu.items import ZhihuAnswerItem,ZhihuQuestionItem
 import pickle
 import datetime
 import time
+from zhihu.utils.commos import question_content
 from urllib import parse
 from mouse import move,click
 class ZhihuSpider(scrapy.Spider):
@@ -19,7 +20,6 @@ class ZhihuSpider(scrapy.Spider):
         # 提取出HTML页面中的所有url，并跟踪这些url
         all_urls=response.css("a::attr(href)").extract()
         all_urls=[parse.urljoin(response.url,url)for url in all_urls]
-        # all_urls=filter(lambda x:True if x.startwith("https") else False,all_urls)
         all_urls = filter(lambda x: True if x.startswith("https") else False, all_urls)
         for url in all_urls:
             match_obj=re.match('(.*zhihu.com/question/(\d+))(/|$).*',url)
@@ -28,6 +28,7 @@ class ZhihuSpider(scrapy.Spider):
                 quetion_id=match_obj.group(2)
                 # 提取question的页面
                 yield scrapy.Request(request_url,callback=self.parse_question)
+                # break
             else:
                 # 不是question的页面进一步爬取
                 # pass
@@ -37,9 +38,13 @@ class ZhihuSpider(scrapy.Spider):
         match_obj = re.match('(.*zhihu.com/question/(\d+))(/|$).*', response.url)
         if match_obj:
             quetion_id = int(match_obj.group(2))
+        conrent_re=response.css('.QuestionHeader-detail ::text').extract()[0]
+        conrent=question_content(conrent_re)
+        pass
         item_loader=ItemLoader(item=ZhihuQuestionItem(),response=response)
         item_loader.add_css('title','.QuestionHeader-title::text')
-        item_loader.add_css('content', '.QuestionHeader-detail')
+        # item_loader.add_css('content', '.QuestionHeader-detail')
+        item_loader.add_value('content',conrent)
         item_loader.add_value('url', response.url)
         item_loader.add_value('ID',quetion_id)
         item_loader.add_css('answer_num','.List-headerText span::text')
@@ -47,14 +52,14 @@ class ZhihuSpider(scrapy.Spider):
         item_loader.add_css('watch_user_num','.NumberBoard-itemValue::text')
         item_loader.add_css('topics','.QuestionHeader-topics .Popover div::text')
         quetion_item=item_loader.load_item()
-        yield quetion_item
+
         yield scrapy.Request(self.start_anser_url.format(quetion_id,20,0),callback=self.parse_anser)
+        yield quetion_item
 
 
     def parse_anser(self, response):
         ans_json=json.loads(response.text)
         is_end=ans_json['paging']['is_end']
-        # total_anser=ans_json['pading']['totals']
         next_url=ans_json['paging']['next']
 
         for answer in ans_json['data']:
@@ -73,8 +78,6 @@ class ZhihuSpider(scrapy.Spider):
 
         if not is_end:
             yield scrapy.Request(next_url, callback=self.parse_anser)
-
-        pass
     # def start_requests(self):
     #
     #     # cookies=pickle.load(open('D:/python/project/zhihu/cookies/zhihui.cookie',"rb"))
